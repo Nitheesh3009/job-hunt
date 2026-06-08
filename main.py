@@ -21,7 +21,7 @@ def cmd_scrape(_args):
 
 def cmd_links(args):
     from scraper.link_generator import generate
-    output = generate()
+    output = asyncio.run(generate())
     if args.open:
         webbrowser.open(output.as_uri())
 

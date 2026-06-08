@@ -82,9 +82,9 @@ To add or remove job boards, edit the **`job_boards`** file — one URL per line
 
 ## Usage
 
-### Method B — Generate search links HTML (recommended starting point)
+### Method B — Scrape and generate results HTML (recommended starting point)
 
-Produces a timestamped HTML file in `output/` containing pre-built search links for every role × every platform. Open it in a browser and click through manually.
+Visits every board and aggregator with Playwright, searches for each role, and produces a timestamped HTML file in `output/` containing only the boards that returned actual matching job listings. Boards with no results for a role are silently omitted.
 
 ```bash
 python main.py links

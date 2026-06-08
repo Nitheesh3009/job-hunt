@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python main.py links --open)",
       "Bash(python main.py list)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(python -c \"from scraper.config import load_config; c = load_config\\(\\); print\\('Roles:', c.roles\\); print\\('Keywords:', list\\(c.role_keywords.keys\\(\\)\\)\\)\")"
     ]
   }
 }
