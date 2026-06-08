@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python main.py links --open)",
+      "Bash(python main.py list)",
+      "Bash(pip install *)"
+    ]
+  }
+}

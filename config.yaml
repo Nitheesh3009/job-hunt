@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────
+#  Job Hunt — Search Configuration
+#  Edit this file to control what gets searched.
+# ─────────────────────────────────────────────
+
+# Roles to search for across all platforms.
+# Add or remove lines freely.
+roles:
+  - Full Stack Developer
+  - Python Developer
+  - Frontend Engineer
+  - React Developer
+  - Node.js Developer
+
+# Where to search (used in aggregator queries).
+# Examples: "Remote", "New York, NY", "United States"
+location: Remote
+
+# Only include postings from the last N days.
+date_range_days: 14
+
+# Maximum results to collect per site per role.
+max_results_per_site: 25
+
+# Random delay range (seconds) between requests — mimics human behavior.
+min_delay_s: 3.0
+max_delay_s: 8.0
+
+# Keywords used to confirm a result actually matches the intended role.
+# Any match in the job title is enough to keep the listing.
+role_keywords:
+  Full Stack Developer:
+    - full stack
+    - fullstack
+    - full-stack
+    - react
+    - node
+    - nodejs
+  Python Developer:
+    - python
+    - django
+    - fastapi
+    - flask
+    - backend
+    - back-end
+  Frontend Engineer:
+    - frontend
+    - front-end
+    - react
+    - vue
+    - angular
+    - ui
+    - typescript
+  React Developer:
+    - react
+    - reactjs
+    - frontend
+    - front-end
+    - jsx
+    - typescript
+  Node.js Developer:
+    - node
+    - nodejs
+    - "node.js"
+    - express
+    - javascript
+    - backend
