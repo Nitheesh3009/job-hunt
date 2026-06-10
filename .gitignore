@@ -17,6 +17,7 @@ env/
 ENV/
 
 # Generated output
+bugs/
 output/
 jobs.json
 search_links.html
