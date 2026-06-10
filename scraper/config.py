@@ -31,8 +31,10 @@ def load_config(path: Path = CONFIG_FILE) -> SearchConfig:
     )
 
 
-# Query-parameter key for each consulting board domain
+# Query-parameter key for each consulting board domain.
+# Keys may be root domains OR full subdomain hostnames — both are checked.
 BOARD_QUERY_PARAMS: Dict[str, str] = {
+    # root domains
     "tridentconsultinginc.com":    "search",
     "pyramidci.com":               "s",
     "experis.com":                 "query",
@@ -59,6 +61,20 @@ BOARD_QUERY_PARAMS: Dict[str, str] = {
     "matrixres.com":               "search",
     "vaco.com":                    "q",
     "lancesoft.com":               "s",
+    # subdomain variants (as they appear in job_boards file)
+    "jobs.beaconhillstaffing.com": "q",
+    "careers.eliassen.com":        "keyword",
+    "jobs.pinnacle1.com":          "q",
+    "careers.centizenapps.com":    "query",
+    "jobs.yoh.com":                "q",
+    "careers.pipercompanies.com":  "keyword",
+    "careers.kellymitchell.com":   "query",
+}
+
+# Boards whose search URL does not filter results server-side.
+# For these we navigate to the base jobs URL and let keyword matching filter locally.
+BOARDS_NO_SEARCH_URL: Dict[str, str] = {
+    "careers.kellymitchell.com": "https://www.careers.kellymitchell.com/jobs",
 }
 
 # Primary aggregator URL templates ({role} and {location} are substituted)

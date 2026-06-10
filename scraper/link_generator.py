@@ -13,6 +13,7 @@ from playwright.async_api import async_playwright, BrowserContext
 from scraper.config import (
     AGGREGATOR_TEMPLATES,
     BOARD_QUERY_PARAMS,
+    BOARDS_NO_SEARCH_URL,
     SearchConfig,
     load_config,
 )
@@ -131,48 +132,80 @@ async def _scrape_ziprecruiter(page, role: str, config: SearchConfig) -> List[Di
 
 async def _scrape_board(page, board_url: str, role: str, config: SearchConfig) -> List[Dict]:
     domain = get_domain(board_url)
-    param  = BOARD_QUERY_PARAMS.get(domain, "q")
-    url    = build_search_url(board_url, param, role)
-    jobs   = []
+    jobs: List[Dict] = []
+
+    # Some boards don't filter server-side — navigate to their full jobs listing instead
+    if domain in BOARDS_NO_SEARCH_URL:
+        url = BOARDS_NO_SEARCH_URL[domain]
+    else:
+        param = BOARD_QUERY_PARAMS.get(domain, "q")
+        url   = build_search_url(board_url, param, role)
 
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=40000)
+        await page.goto(url, wait_until="networkidle", timeout=45000)
         await random_delay(config.min_delay_s, config.max_delay_s)
         for _ in range(4):
             await page.evaluate("window.scrollBy(0, 700)")
             await random_delay(1.0, 2.0)
 
-        selectors = [
-            "a[href*='job']",
-            "a[href*='career']",
-            "div[class*='job'] a",
-            "li[class*='job'] a",
-            "tr[class*='job'] a",
-            ".job-title a",
-            ".jobTitle a",
-            "[data-job-id] a",
+        # Ordered from most-specific to most-generic.
+        # We try every selector and merge all unique links found, rather than
+        # stopping at the first match — this handles sites where nav links
+        # satisfy a broad selector but real job links come from a later one.
+        CANDIDATE_SELECTORS = [
+            # most specific — explicit job-detail link patterns
+            "h2 a[href]",
+            "h3 a[href]",
+            "article a[href]",
+            ".job-title a[href]",
+            ".jobTitle a[href]",
+            "[class*='job-card'] a[href]",
+            "[class*='jobCard'] a[href]",
+            "[class*='result-item'] a[href]",
+            "[data-job-id] a[href]",
+            # path-specific job links (prefer over generic /job* nav links)
+            "a[href*='/jobs/']",
+            "a[href*='/job/']",
+            "a[href*='/careers/']",
         ]
-        links = []
-        for sel in selectors:
-            links = await page.query_selector_all(sel)
-            if links:
-                break
+
+        base_parsed = urllib.parse.urlparse(board_url)
+        base_origin = f"{base_parsed.scheme}://{base_parsed.netloc}"
 
         seen: set = set()
-        for link_el in links[: config.max_results_per_site]:
-            try:
-                href = await link_el.get_attribute("href") or ""
-                text = (await link_el.inner_text()).strip()
-                if href.startswith("/"):
-                    base = urllib.parse.urlparse(board_url)
-                    href = f"{base.scheme}://{base.netloc}{href}"
-                href = clean_url(href)
-                if not href or href in seen or not text:
+        all_links: List[Dict] = []
+
+        for sel in CANDIDATE_SELECTORS:
+            els = await page.query_selector_all(sel)
+            for el in els:
+                try:
+                    href = (await el.get_attribute("href") or "").strip()
+                    text = (await el.inner_text()).strip()
+
+                    # resolve relative URLs
+                    if href.startswith("/"):
+                        href = base_origin + href
+                    elif not href.startswith("http"):
+                        continue
+
+                    href = clean_url(href)
+
+                    # skip blank, duplicate, or nav-only links (no meaningful text)
+                    if not href or href in seen or not text or len(text) < 4:
+                        continue
+                    # skip links that look like navigation categories ("See 89 jobs", "About us", etc.)
+                    if len(text) > 120 or text.lower().startswith("see ") or "#" in href.split("?")[0]:
+                        continue
+
+                    seen.add(href)
+                    all_links.append({"title": text[:200], "url": href})
+                except Exception:
                     continue
-                seen.add(href)
-                jobs.append({"title": text[:200], "company": domain.split(".")[0].title(), "url": href})
-            except Exception:
-                continue
+
+        company = domain.split(".")[0].title()
+        for link in all_links[: config.max_results_per_site]:
+            jobs.append({**link, "company": company})
+
     except Exception as exc:
         print(f"  [{domain}] {exc}")
 
@@ -304,28 +337,28 @@ async def generate(config: SearchConfig | None = None) -> Path:
                 ("Indeed",       _scrape_indeed),
                 ("ZipRecruiter", _scrape_ziprecruiter),
             ]:
-                print(f"  [{name}] …", end=" ", flush=True)
+                print(f"  [{name}] ...", end=" ", flush=True)
                 page = await context.new_page()
                 try:
                     jobs = await scrape_fn(page, role, config)
                     matched = [j for j in jobs if title_matches_role(j["title"], keywords)]
                     if matched:
                         results[role][name] = matched
-                    print(f"{len(jobs)} found → {len(matched)} matched")
+                    print(f"{len(jobs)} found / {len(matched)} matched")
                 finally:
                     await page.close()
 
             # ── consulting / staffing boards ─────────────────────────
             for board_url in board_urls:
                 domain = get_domain(board_url)
-                print(f"  [{domain}] …", end=" ", flush=True)
+                print(f"  [{domain}] ...", end=" ", flush=True)
                 page = await context.new_page()
                 try:
                     jobs = await _scrape_board(page, board_url, role, config)
                     matched = [j for j in jobs if title_matches_role(j["title"], keywords)]
                     if matched:
                         results[role][domain] = matched
-                    print(f"{len(jobs)} found → {len(matched)} matched")
+                    print(f"{len(jobs)} found / {len(matched)} matched")
                 finally:
                     await page.close()
 
